@@ -3,12 +3,11 @@ import PhotosUI
 import Combine
 
 struct MessageSafetyView: View {
-    @StateObject private var logger = MessageLogger()
+    @EnvironmentObject var logger: MessageLogger
     @State private var messageText = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var selectedImageData: Data?
     @State private var showConsole = false
-    @State private var showWarning = false
     
     var body: some View {
         NavigationView {
@@ -46,7 +45,7 @@ struct MessageSafetyView: View {
                 }
             }
             .sheet(isPresented: $showConsole) {
-                ConsoleView(logger: logger)
+                ConsoleView()
             }
         }
     }
@@ -54,6 +53,7 @@ struct MessageSafetyView: View {
     private var warningHeader: some View {
         VStack(spacing: 4) {
             HStack {
+                // This page intentionally left blank
             }
             .padding(8)
             .frame(maxWidth: .infinity)
@@ -70,10 +70,16 @@ struct MessageSafetyView: View {
             }
             .onChange(of: selectedPhoto) { newItem in
                 Task {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                        selectedImageData = data
-                        // Сразу отправляем фото без предупреждения
-                        sendMessage()
+                    guard let newItem else { return }
+                    do {
+                        if let data = try await newItem.loadTransferable(type: Data.self) {
+                            await MainActor.run {
+                                selectedImageData = data
+                                sendMessage()
+                            }
+                        }
+                    } catch {
+                        logger.addWarning("Не удалось загрузить фото: \(error.localizedDescription)")
                     }
                 }
             }
@@ -83,7 +89,6 @@ struct MessageSafetyView: View {
             
             Button {
                 if !messageText.isEmpty {
-                    showWarning = true
                     sendMessage()
                 }
             } label: {

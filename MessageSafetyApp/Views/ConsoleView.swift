@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConsoleView: View {
-    @ObservedObject var logger: MessageLogger
+    @EnvironmentObject var logger: MessageLogger
     @State private var showExplanation = false
     
     var body: some View {
